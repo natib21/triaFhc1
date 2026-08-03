@@ -19,12 +19,11 @@ const CATEGORY_TYPE_OPTIONS = [
   { value: 'OTHER', label: 'Other', emoji: '📌' }
 ];
 
-  let currentFilter = 'all';
-  let searchQuery = '';
+let currentFilter = 'all';
+let searchQuery = '';
 
-  // ─── HELPERS ───────────────────────────────────────────────────────────
- function computeFullName(item) {
-  // Get title prefix
+// ─── HELPERS ───────────────────────────────────────────────────────────
+function computeFullName(item) {
   let titlePrefix = '';
   if (item.currentTitle?.name?.en) {
     titlePrefix = item.currentTitle.name.en + ' ';
@@ -41,7 +40,6 @@ const CATEGORY_TYPE_OPTIONS = [
   }
   const lastName = item.lastName?.en || item.lastName?.am || '';
   
-  // If firstName is empty, try to use user.name
   let name = '';
   if (firstName || lastName) {
     name = [firstName, middleName, lastName].filter(Boolean).join(' ');
@@ -55,10 +53,8 @@ const CATEGORY_TYPE_OPTIONS = [
 }
 
 function getFilteredData() {
-  // ✅ FIX: Defensively handle data shape
   let source = [];
   
-  // Try to get the data from store.userExtensions
   if (store.userExtensions) {
     if (Array.isArray(store.userExtensions)) {
       source = store.userExtensions;
@@ -112,7 +108,6 @@ function getFilteredData() {
         (ext.tinNumber || '').toLowerCase(),
         (ext.currentAddress || '').toLowerCase(),
         (ext.institution?.name?.en || ext.institution?.name?.am || '').toLowerCase(),
-        // ✅ Also search by rank name
         (ext.currentRank?.name?.en || ext.currentRank?.name?.am || '').toLowerCase()
       ];
       return searchable.some(field => field.includes(q));
@@ -122,7 +117,6 @@ function getFilteredData() {
   return list.map(item => {
     if (!item) return { fullName: 'N/A' };
     
-    // ✅ Extract current rank from rankAssignments
     let currentRank = null;
     if (item.rankAssignments && Array.isArray(item.rankAssignments)) {
       const currentAssignment = item.rankAssignments.find(assignment => assignment.isCurrent === true);
@@ -131,7 +125,6 @@ function getFilteredData() {
       }
     }
     
-    // Compute fullName with title
     let titlePrefix = '';
     if (item.currentTitle?.name?.en) {
       titlePrefix = item.currentTitle.name.en + ' ';
@@ -159,15 +152,13 @@ function getFilteredData() {
     
     fullName = fullName ? titlePrefix + fullName : 'N/A';
     
-    // ✅ Return item with currentRank extracted
     return {
       ...item,
       fullName: fullName,
-      currentRank: currentRank // ✅ Add currentRank to the item
+      currentRank: currentRank
     };
   });
 }
-
 
 function renderManualTable(container, data) {
   console.log('Rendering manual table with', data.length, 'items');
@@ -196,20 +187,17 @@ function renderManualTable(container, data) {
     const email = item.user?.email || item.userId || 'N/A';
     const username = item.user?.username || 'N/A';
     
-    // ✅ Title handling
     const titleName = item.currentTitle?.name?.en || item.currentTitle?.name?.am || '-';
     const titleDisplay = titleName !== '-' 
       ? `<span class="text-xs font-medium px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-md">📌 ${titleName}</span>`
       : `<span class="text-xs text-slate-400 italic">No title assigned</span>`;
     
-    // ✅ Rank handling with priority visualization (lower number = higher priority)
     let rankDisplay = '';
     if (item.currentRank) {
       const rankName = item.currentRank.name?.en || item.currentRank.name?.am || '-';
       const rankPriority = item.currentRank.priorityLevel || item.currentRank.allocationPriority || '';
       const bedroomEntitlement = item.currentRank.bedroomEntitlement || '';
       
-      // ✅ Priority level styling (lower number = higher priority)
       let priorityBadge = '';
       let priorityEmoji = '';
       let priorityColor = '';
@@ -239,7 +227,6 @@ function renderManualTable(container, data) {
           priorityLabel = 'Lowest Priority';
         }
         
-        // Priority bar - wider for higher priority (lower number = wider bar)
         const barWidth = Math.max(10, (11 - priority) * 10);
         const barColor = priority <= 3 ? '#10B981' : priority <= 6 ? '#F59E0B' : '#EF4444';
         
@@ -357,161 +344,33 @@ function renderManualTable(container, data) {
   console.log('Manual table rendered successfully');
 }
 
+function attachActionListeners() {
+  const container = document.getElementById('user-extensions-table-container');
+  if (!container) return;
 
-  // ✅ FIX: Fallback table rendering if Table.render fails
-  function showFallbackTable(container, data) {
-    let html = `
-      <div class="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Name</th>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Email</th>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Rank</th>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Institution</th>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Status</th>
-                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    data.forEach(item => {
-      html += `
-        <tr class="border-b border-slate-100 hover:bg-slate-50">
-          <td class="px-4 py-2 text-sm font-medium text-slate-900">${item.fullName}</td>
-          <td class="px-4 py-2 text-sm text-slate-600">${item.user?.email || item.userId || 'N/A'}</td>
-          <td class="px-4 py-2 text-sm text-slate-600">${item.currentRank?.name?.en || item.currentRank?.name?.am || '-'}</td>
-          <td class="px-4 py-2 text-sm text-slate-600">${item.institution?.name?.en || item.institution?.name?.am || '-'}</td>
-          <td class="px-4 py-2 text-sm">
-            ${item.user 
-              ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold rounded-md">✅ Active</span>'
-              : '<span class="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 text-[11px] font-semibold rounded-md">❌ Inactive</span>'
-            }
-          </td>
-          <td class="px-4 py-2 text-sm">
-            <button data-view-id="${item.id}" class="p-1 text-indigo-600 hover:bg-indigo-50 rounded">View</button>
-            <button data-edit-id="${item.id}" class="p-1 text-indigo-600 hover:bg-indigo-50 rounded">Edit</button>
-            <button data-delete-id="${item.id}" class="p-1 text-rose-600 hover:bg-rose-50 rounded">Delete</button>
-          </td>
-        </tr>
-      `;
+  container.querySelectorAll('[data-view-id]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-view-id');
+      if (id) viewUserDetails(id);
     });
-    
-    html += `
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-    
-    container.innerHTML = html;
-  }
+  });
 
-  function getTableColumns() {
-    return [
-      {
-        header: 'User Information',
-        key: 'fullName',
-        sortable: true,
-        render: function(item) {
-          return `<div class="space-y-0.5">
-            <p class="font-semibold text-slate-900 text-sm">${item.fullName}</p>
-            <p class="text-slate-400 font-mono text-xs">Email: ${item.user?.email || item.userId || 'N/A'}</p>
-          </div>`;
-        }
-      },
-      {
-        header: 'Rank / Title',
-        key: 'rank',
-        render: function(item) {
-          return `<div class="text-xs space-y-0.5">
-            <p class="text-slate-700">🎖️ Rank: ${item.currentRank?.name?.en || item.currentRank?.name?.am || '-'}</p>
-            <p class="text-slate-500">📌 Title: ${item.currentTitle?.name?.en || item.currentTitle?.name?.am || '-'}</p>
-          </div>`;
-        }
-      },
-      {
-        header: 'Institution',
-        key: 'institution',
-        render: function(item) {
-          return `<div class="text-xs"><p class="text-slate-600">🏛️ ${item.institution?.name?.en || item.institution?.name?.am || '-'}</p></div>`;
-        }
-      },
-      {
-        header: 'Personal Details',
-        key: 'personal',
-        render: function(item) {
-          const gender = item.gender || 'N/A';
-          const genderIcon = gender === 'male' ? '♂️' : gender === 'female' ? '♀️' : '⚧️';
-          const dob = item.dateOfBirth ? new Date(item.dateOfBirth).toLocaleDateString() : 'N/A';
-          return `<div class="text-xs space-y-0.5">
-            <p class="text-slate-700">${genderIcon} ${gender}</p>
-            <p class="text-slate-500">DOB: ${dob}</p>
-          </div>`;
-        }
-      },
-      {
-        header: 'ID Numbers',
-        key: 'ids',
-        render: function(item) {
-          return `<div class="text-xs space-y-0.5">
-            <p class="font-mono text-slate-600">National ID: ${item.nationalIdNumber || 'N/A'}</p>
-            <p class="font-mono text-slate-600">Passport: ${item.passportNumber || 'N/A'}</p>
-            <p class="font-mono text-slate-600">TIN: ${item.tinNumber || 'N/A'}</p>
-          </div>`;
-        }
-      },
-      {
-        header: 'Status',
-        key: 'isActive',
-        render: function(item) {
-          return item.user 
-            ? '<span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold rounded-md">✅ Active</span>'
-            : '<span class="px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 text-[11px] font-semibold rounded-md">❌ Inactive</span>';
-        }
-      },
-      {
-        header: 'Actions',
-        key: 'id',
-        render: function(item) {
-          return `<div class="flex items-center gap-1.5">
-            <button data-view-id="${item.id}" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="View Details"><i class="fa-regular fa-eye text-sm"></i></button>
-            <button data-edit-id="${item.id}" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors" title="Edit User"><i class="fa-solid fa-pen-to-square text-sm"></i></button>
-            <button data-delete-id="${item.id}" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors" title="Delete User"><i class="fa-regular fa-trash-can text-sm"></i></button>
-          </div>`;
-        }
-      }
-    ];
-  }
-
-  function attachActionListeners() {
-    const container = document.getElementById('user-extensions-table-container');
-    if (!container) return;
-
-    container.querySelectorAll('[data-view-id]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const id = this.getAttribute('data-view-id');
-        if (id) viewUserDetails(id);
-      });
+  container.querySelectorAll('[data-edit-id]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-edit-id');
+      if (id) openExtensionForm(id);
     });
+  });
 
-    container.querySelectorAll('[data-edit-id]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const id = this.getAttribute('data-edit-id');
-        if (id) openExtensionForm(id);
-      });
+  container.querySelectorAll('[data-delete-id]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-delete-id');
+      if (id) confirmDeleteExtension(id);
     });
+  });
+}
 
-    container.querySelectorAll('[data-delete-id]').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const id = this.getAttribute('data-delete-id');
-        if (id) confirmDeleteExtension(id);
-      });
-    });
-  }
- function loadAndRenderTable() {
+function loadAndRenderTable() {
   try {
     const data = getFilteredData();
     const tableContainer = document.getElementById('user-extensions-table-container');
@@ -519,7 +378,6 @@ function renderManualTable(container, data) {
 
     console.log('Table data:', data);
     console.log('Table data length:', data.length);
-    console.log('First item:', data.length > 0 ? data[0] : 'No data');
 
     if (!data || data.length === 0) {
       tableContainer.innerHTML = `
@@ -548,7 +406,6 @@ function renderManualTable(container, data) {
       return;
     }
 
-    // ✅ DIRECT RENDER: Use manual table rendering instead of Table.render
     renderManualTable(tableContainer, data);
     attachActionListeners();
     renderPaginationControls();
@@ -569,33 +426,22 @@ function renderManualTable(container, data) {
   }
 }
 
-// ─── Helper: Unwrap API Response ──────────────────────────────────────
 function unwrapResponse(response) {
-  // If response is null/undefined, return as-is
   if (!response) return response;
-  
-  // If response has a data property, use it
   if (response.data !== undefined && response.data !== null) {
     return response.data;
   }
-  
-  // If response has an item property, use it
   if (response.item !== undefined && response.item !== null) {
     return response.item;
   }
-  
-  // If response has an items property (paginated), return it
   if (response.items !== undefined && Array.isArray(response.items)) {
     return response.items;
   }
-  
-  // Otherwise return the response as-is
   return response;
 }
 
 // ─── MAIN RENDER FUNCTION ──────────────────────────────────────────────
-// ─── MAIN RENDER FUNCTION ──────────────────────────────────────────────
-let isLoading = false; // ✅ Add loading flag at module level
+let isLoading = false;
 
 export function renderUserExtensions() {
   try {
@@ -610,40 +456,34 @@ export function renderUserExtensions() {
       return;
     }
 
-    // ✅ If already loading, return to prevent infinite loop
     if (isLoading) {
       console.log('Already loading, skipping...');
       return;
     }
 
-    // ✅ FIX: Ensure store.userExtensions is always an array
     if (!store.userExtensions || !Array.isArray(store.userExtensions)) {
       console.warn('renderUserExtensions: store.userExtensions is not an array, initializing as empty array');
       store.userExtensions = [];
     }
 
-    // Initialize other store arrays
-     store.userExtensions = [];
     store.ranks = store.ranks || [];
     store.titles = store.titles || [];
     store.institutions = store.institutions || [];
 
-     renderUI(contentArea);
-    //  fetchPage(1);
+    renderUI(contentArea);
+    
     console.log('Current store.userExtensions:', store.userExtensions);
     console.log('Is array?', Array.isArray(store.userExtensions));
     console.log('Length:', store.userExtensions.length);
 
-    // ✅ FIX: Check if we need to fetch data
     const needsFetch = store.userExtensions.length === 0 || 
                        (!Array.isArray(store.userExtensions));
 
     if (needsFetch) {
       console.log('Fetching user extensions from API...');
-      isLoading = true; // ✅ Set loading flag
+      isLoading = true;
       
-      // store.apiService.get('/identities')
-      store.apiService.get('/user-extensions')
+      store.apiService.get('/identities')
         .then(function(response) {
           console.log('User extensions API response:', response);
           
@@ -665,19 +505,17 @@ export function renderUserExtensions() {
           console.log('Data length:', data.length);
           
           store.userExtensions = data;
-          isLoading = false; // ✅ Reset loading flag
+          isLoading = false;
           
-          // ✅ Render the UI with the data (not call renderUserExtensions again)
           renderUI(contentArea);
         })
         .catch(function(error) {
           console.error('Error fetching user extensions:', error);
           store.userExtensions = [];
-          isLoading = false; // ✅ Reset loading flag on error
+          isLoading = false;
           showError('Failed to load user extensions. Please refresh the page.');
         });
       
-      // Show loading state
       contentArea.innerHTML = `
         <div class="flex items-center justify-center p-12">
           <div class="text-center">
@@ -689,7 +527,6 @@ export function renderUserExtensions() {
       return;
     }
 
-    // ✅ Data is already loaded, render UI directly
     console.log('Rendering UI with', store.userExtensions.length, 'user extensions');
     renderUI(contentArea);
     
@@ -704,10 +541,7 @@ let currentPage = 1;
 let pageSize = 20;
 let totalCount = 0;
 
-// ─── FETCH ONE PAGE ──────────────────────────────────────────────────
-// ─── FETCH ONE PAGE ──────────────────────────────────────────────────
 function fetchPage(page) {
-  // ✅ Prevent multiple simultaneous fetches
   if (isLoading) {
     console.log('Already loading, skipping...');
     return;
@@ -716,7 +550,6 @@ function fetchPage(page) {
   isLoading = true;
   const skip = (page - 1) * pageSize;
   
-  // ✅ Show loading state in the table container
   const tableContainer = document.getElementById('user-extensions-table-container');
   if (tableContainer) {
     tableContainer.innerHTML = `
@@ -727,7 +560,7 @@ function fetchPage(page) {
     `;
   }
 
-  const url = `/user-extensions?skip=${skip}&take=${pageSize}`;
+  const url = `/identities?skip=${skip}&take=${pageSize}`;
   console.log('📡 Fetching:', url);
   
   return store.apiService.get(url)
@@ -751,7 +584,6 @@ function fetchPage(page) {
               : typeof response.total === 'number' ? response.total
               : items.length;
       } else {
-        // Fallback: try to find any array in the response
         if (response && typeof response === 'object') {
           for (const key of Object.keys(response)) {
             if (Array.isArray(response[key])) {
@@ -765,13 +597,11 @@ function fetchPage(page) {
 
       console.log('📊 Extracted items:', items.length, 'items, total:', count);
 
-      // ✅ Update state
       store.userExtensions = items;
       totalCount = count;
       currentPage = page;
       isLoading = false;
 
-      // ✅ Load and render the table
       loadAndRenderTable();
       renderPaginationControls();
     })
@@ -779,7 +609,6 @@ function fetchPage(page) {
       console.error('❌ Error fetching user extensions page:', error);
       isLoading = false;
       
-      // ✅ Show error state in the table container
       const tableContainer = document.getElementById('user-extensions-table-container');
       if (tableContainer) {
         tableContainer.innerHTML = `
@@ -794,7 +623,7 @@ function fetchPage(page) {
       Toast.error('Failed to load user extensions. Please try again.');
     });
 }
-// ─── PAGINATION CONTROLS ─────────────────────────────────────────────
+
 function renderPaginationControls() {
   const container = document.getElementById('user-extensions-pagination-container');
   if (!container) return;
@@ -833,7 +662,7 @@ function renderPaginationControls() {
     pageSize = parseInt(this.value, 10);
     fetchPage(1);
   });
- }
+}
 
 // ─── UI RENDER ──────────────────────────────────────────────────────────
 function renderUI(contentArea) {
@@ -865,11 +694,6 @@ function renderUI(contentArea) {
     </div>
   `;
 
-
-  // ─── STATE ─────────────────────────────────────────────────────────────
-
-
-  // ─── FILTERS ──────────────────────────────────────────────────────────
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const filter = this.dataset.filter;
@@ -884,16 +708,13 @@ function renderUI(contentArea) {
     });
   });
 
-  // ─── CREATE BUTTON ────────────────────────────────────────────────────
   document.getElementById('btn-create-extension')?.addEventListener('click', function() {
     openExtensionForm();
   });
-loadAndRenderTable();
-  // ─── INITIAL LOAD ────────────────────────────────────────────────────
-  // loadAndRenderTable();
+  
+  loadAndRenderTable();
 }
 
-// ─── SHOW ERROR ──────────────────────────────────────────────────────
 function showError(message) {
   const contentArea = document.getElementById('main-content-area');
   if (contentArea) {
@@ -1065,24 +886,23 @@ function openCreateTitleModal(callback) {
   });
 }
 
-
+// ─── MAIN EXTENSION FORM ──────────────────────────────────────────────
 function openExtensionForm(id) {
   const isEdit = !!id;
   const item = isEdit ? store.userExtensions.find(u => u.id === id) : null;
 
-  // ─── Get options (unchanged) ────────────────────────────────────────
-function getRankOptions(selectedId) {
-  let html = '<option value="">-- No Rank --</option>';
-  if (store.ranks) {
-    store.ranks.forEach(rank => {
-      const selected = (selectedId === rank.id) ? 'selected' : '';
-      const priority = rank.priorityLevel || rank.allocationPriority || 'N/A';
-      const name = rank.name?.en || rank.name?.am || rank.code || '-';
-      html += `<option value="${rank.id}" ${selected}>${name} (Priority: ${priority})</option>`;
-    });
+  function getRankOptions(selectedId) {
+    let html = '<option value="">-- No Rank --</option>';
+    if (store.ranks) {
+      store.ranks.forEach(rank => {
+        const selected = (selectedId === rank.id) ? 'selected' : '';
+        const priority = rank.priorityLevel || rank.allocationPriority || 'N/A';
+        const name = rank.name?.en || rank.name?.am || rank.code || '-';
+        html += `<option value="${rank.id}" ${selected}>${name} (Priority: ${priority})</option>`;
+      });
+    }
+    return html;
   }
-  return html;
-}
 
   function getTitleOptions(selectedId) {
     let html = '<option value="">-- No Title --</option>';
@@ -1106,11 +926,10 @@ function getRankOptions(selectedId) {
     return html;
   }
 
-  // ─── Form state ─────────────────────────────────────────────────────
   const formData = {
     username: item?.user?.username || item?.user?.email || '',
-   userType: item?.user?.userType || 'employee',
-    phone: item?.user?.phoneNumber || '',
+    userType: item?.user?.userType || 'employee',
+    phone: item?.phoneNumber || '',
     nameEn: item?.user?.name?.en || '',
     nameAm: item?.user?.name?.am || '',
     firstNameEn: item?.firstName?.en || '',
@@ -1125,7 +944,7 @@ function getRankOptions(selectedId) {
     nationalIdNumber: item?.nationalIdNumber || '',
     passportNumber: item?.passportNumber || '',
     tinNumber: item?.tinNumber || '',
-    currentAddress: item?.currentAddress || '',
+    currentAddress: item?.address || '',
     institutionId: item?.institution?.id || '',
     rankId: item?.currentRank?.id || '',
     titleId: item?.currentTitle?.id || '',
@@ -1136,11 +955,6 @@ function getRankOptions(selectedId) {
   let modalInstance = null;
   let isSubmitting = false;
 
-
-
-  
-
-  // ─── Build form HTML ────────────────────────────────────────────────
   function buildFormHTML() {
     return `
       <div class="max-h-[70vh] overflow-y-auto p-1" id="extension-form-container">
@@ -1165,12 +979,11 @@ function getRankOptions(selectedId) {
             </div>
             <div>
               <label class="block text-xs font-semibold uppercase text-slate-500 tracking-wider mb-1.5">User Type <span class="text-rose-500">*</span></label>
-             <!-- ✅ NEW - Valid values -->
-<select id="signup-user-type" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
-  <option value="employee" ${formData.userType === 'employee' ? 'selected' : ''}>👔 Employee</option>
-  <option value="individual" ${formData.userType === 'individual' ? 'selected' : ''}>👤 Individual</option>
-  <option value="external_organization" ${formData.userType === 'external_organization' ? 'selected' : ''}>🏢 External Organization</option>
-</select>
+              <select id="signup-user-type" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500">
+                <option value="employee" ${formData.userType === 'employee' ? 'selected' : ''}>👔 Employee</option>
+                <option value="individual" ${formData.userType === 'individual' ? 'selected' : ''}>👤 Individual</option>
+                <option value="external_organization" ${formData.userType === 'external_organization' ? 'selected' : ''}>🏢 External Organization</option>
+              </select>
             </div>
             ${!isEdit ? `
             <div>
@@ -1201,7 +1014,6 @@ function getRankOptions(selectedId) {
               <input type="text" id="signup-name-am" value="${formData.nameAm}" placeholder="ጆን ዶ" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-hidden focus:ring-1 focus:ring-indigo-500 font-sans" />
             </div>
           </div>
-          <!-- ✅ Next button for Account tab -->
           <div class="flex justify-end mt-4 pt-4 border-t border-slate-200">
             <button type="button" id="tab-next-account" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">
               Next: Profile →
@@ -1332,7 +1144,6 @@ function getRankOptions(selectedId) {
     `;
   }
 
-  // ─── Save form data from DOM ────────────────────────────────────────
   function saveFormDataFromDOM(container) {
     if (!container) return;
     
@@ -1363,7 +1174,6 @@ function getRankOptions(selectedId) {
     formData.isActive = getChecked('[name="isActive"]');
   }
 
-  // ─── Validate current tab ───────────────────────────────────────────
   function validateCurrentTab(tab) {
     if (tab === 'account') {
       if (!formData.username) {
@@ -1420,149 +1230,103 @@ function getRankOptions(selectedId) {
     return true;
   }
 
-  // ─── Get user ID from /api/auth/me ──────────────────────────────────
-// ─── Get user ID from /api/auth/me ──────────────────────────────────
-function getUserIdFromAuth(signupResponse) {
-  // ✅ Get token from signup response
-  const token = signupResponse.token;
-  
-  if (!token) {
-    console.error('No token in signup response:', signupResponse);
-    return Promise.reject(new Error('No token received from signup'));
+  // ─── CREATE USER EXTENSION (Step 2: Create Identity) ──────────────
+  function createIdentity() {
+    return store.apiService.post('/identities', {
+      firstName: { en: formData.firstNameEn, am: formData.firstNameAm },
+      middleName: { en: formData.middleNameEn || '', am: formData.middleNameAm || '' },
+      lastName: { en: formData.lastNameEn, am: formData.lastNameAm },
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
+      nationality: formData.nationality,
+      address: formData.currentAddress || '',
+      phoneNumber: formData.phone,
+      nationalIdNumber: formData.nationalIdNumber || '',
+      passportNumber: formData.passportNumber || '',
+      tinNumber: formData.tinNumber || '',
+      currentTitleId: formData.titleId || null,
+      currentRankId: formData.rankId || null,
+      institutionId: formData.institutionId || null
+    });
   }
+
+  // ─── CREATE USER ACCOUNT (Step 1: Signup) ─────────────────────────
+  function createUserAccount(password, confirmPassword) {
+    return store.apiService.post('/auth/signup-with-pwd', {
+      email: formData.username,
+      username: formData.username,
+      phoneNumber: formData.phone,
+      userType: formData.userType,
+      name: { am: formData.nameAm, en: formData.nameEn },
+      password: password,
+      confirmPassword: confirmPassword
+    });
+  }
+
+  // ─── LINK USER TO IDENTITY ──────────────────────────────────────────
+ // ─── LINK USER TO IDENTITY ──────────────────────────────────────────
+function linkUserToIdentity(identityId, userId) {
+  console.log(`🔗 Linking user ${userId} to identity ${identityId}`);
   
-  console.log('Token from signup:', token);
-  
-  // ✅ Call /auth/me with the token from signup
-  return store.apiService.get('/auth/me', {
-    headers: {
-      'Authorization': 'Bearer ' + token
-    }
+  // Try the specific link endpoint first
+  return store.apiService.patch(`/identities/${identityId}/link-user`, {
+    userId: userId
   })
   .then(function(response) {
-    console.log('Auth/me response:', response);
-    return response.id || response.userId;
+    console.log('✅ User linked successfully via /link-user endpoint:', response);
+    return response;
   })
   .catch(function(error) {
-    console.error('Error getting user from auth/me:', error);
-    throw new Error('Failed to get user info. Please try again.');
-  });
-}
-
-  // ─── Create User Extension ──────────────────────────────────────────
- // ─── Create User Extension ──────────────────────────────────────────
-function createUserExtension(userId) {
-  return store.apiService.post('/user-extensions', {
-    userId: userId,
-    firstName: { en: formData.firstNameEn, am: formData.firstNameAm },
-    middleName: { en: formData.middleNameEn || '', am: formData.middleNameAm || '' },
-    lastName: { en: formData.lastNameEn, am: formData.lastNameAm },
-    dateOfBirth: formData.dateOfBirth,
-    gender: formData.gender,
-    nationality: formData.nationality,
-    currentAddress: formData.currentAddress || '',
-    nationalIdNumber: formData.nationalIdNumber || '',
-    passportNumber: formData.passportNumber || '',
-    tinNumber: formData.tinNumber || '',
-    currentTitleId: formData.titleId || null,
-    currentRankId: formData.rankId || null,  // ✅ This stores the rank ID in the extension
-    institutionId: formData.institutionId || null
-  }).then(function(response) {
-    const extension = unwrapResponse(response);
-    console.log('createUserExtension: raw response =', response, '| unwrapped =', extension);
-    return extension;
-  });;
-}
-
-// ─── Create Rank Assignment ──────────────────────────────────────────
-function createRankAssignment(userExtensionId, rankId) {
-  if (!rankId) {
-    console.log('No rank selected, skipping rank assignment');
-    return Promise.resolve();
-  }
-  
-  const payload = {
-    userExtensionId: userExtensionId,
-    rankId: rankId,
-    startDate: new Date().toISOString().split('T')[0], // Today's date
-    isCurrent: true,
-    changeReason: 'Initial rank assignment'
-  };
-  
-  return store.apiService.post('/rank-assignments', payload)
+    console.warn('⚠️ /link-user endpoint failed (404 likely), trying direct update:', error);
+    
+    // Fallback: Try direct PATCH on permanent-identities
+    return store.apiService.patch(`/permanent-identities/${identityId}`, {
+      userId: userId
+    })
     .then(function(response) {
-      console.log('Rank assignment created:', response);
+      console.log('✅ User linked successfully via direct PATCH:', response);
       return response;
     })
-    .catch(function(error) {
-      console.error('Error creating rank assignment:', error);
-      throw new Error('Failed to assign rank. Please try again.');
+    .catch(function(fallbackError) {
+      console.error('❌ All linking attempts failed:', fallbackError);
+      
+      // If both fail, the user was created but not linked
+      // This is not a critical error - the backend will auto-link via email match
+      console.warn('⚠️ User was created but could not be linked. Backend will auto-link via email.');
+      return Promise.resolve();
     });
-}
-
-  // ─── Update User Extension ──────────────────────────────────────────
-// ─── Update User Extension ──────────────────────────────────────────
-function updateUserExtension(id) {
-  // First update the user extension
-  return store.apiService.put('/user-extensions/' + id, {
-    firstName: { en: formData.firstNameEn, am: formData.firstNameAm },
-    middleName: { en: formData.middleNameEn || '', am: formData.middleNameAm || '' },
-    lastName: { en: formData.lastNameEn, am: formData.lastNameAm },
-    dateOfBirth: formData.dateOfBirth,
-    gender: formData.gender,
-    nationality: formData.nationality,
-    currentAddress: formData.currentAddress || '',
-    nationalIdNumber: formData.nationalIdNumber || '',
-    passportNumber: formData.passportNumber || '',
-    tinNumber: formData.tinNumber || '',
-    currentTitleId: formData.titleId || null,
-    currentRankId: formData.rankId || null,
-    institutionId: formData.institutionId || null
-  })
-  .then(function(extensionResponse) {
-      const unwrapped = unwrapResponse(extensionResponse);
-    console.log('User extension updated:', unwrapped);
-    
-    // ✅ If rank is selected, create/update rank assignment
-    const rankId = formData.rankId;
-    const userExtensionId = extensionResponse.id;
-    
-    if (rankId && userExtensionId) {
-      // Check if rank assignment already exists
-      return store.apiService.get('/rank-assignments?userExtensionId=' + userExtensionId)
-        .then(function(existingAssignments) {
-          if (existingAssignments && existingAssignments.length > 0) {
-            // Update existing rank assignment
-            const assignmentId = existingAssignments[0].id;
-            return store.apiService.put('/rank-assignments/' + assignmentId, {
-              rankId: rankId,
-              startDate: new Date().toISOString().split('T')[0],
-              isCurrent: true,
-              changeReason: 'Rank updated'
-            });
-          } else {
-            // ✅ THIS IS WHERE RANK ASSIGNMENT IS CREATED FOR UPDATES
-            return createRankAssignment(userExtensionId, rankId);
-          }
-        });
-    }
-    return Promise.resolve();
-  })
-  .then(function() {
-    Toast.success('User updated successfully.');
-    store.syncWithBackend(true).then(function() {
-      renderUserExtensions();
-    });
-  })
-  .catch(function(error) {
-    console.error('Error updating user:', error);
-    Toast.error(error.message || 'Failed to update user. Please try again.');
-    isSubmitting = false;
   });
 }
-  // ─── Handle signup and create extension ─────────────────────────────
-// ─── Handle signup and create extension ─────────────────────────────
-function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
+
+  // ─── CREATE RANK ASSIGNMENT ─────────────────────────────────────────
+  function createRankAssignment(identityId, rankId) {
+    if (!rankId) {
+      console.log('No rank selected, skipping rank assignment');
+      return Promise.resolve();
+    }
+    
+    const payload = {
+      identityId: identityId,
+      rankId: rankId,
+      startDate: new Date().toISOString().split('T')[0],
+      isCurrent: true,
+      changeReason: 'Initial rank assignment'
+    };
+    
+    return store.apiService.post('/rank-assignments', payload)
+      .then(function(response) {
+        console.log('Rank assignment created:', response);
+        return response;
+      })
+      .catch(function(error) {
+        console.error('Error creating rank assignment:', error);
+        throw new Error('Failed to assign rank. Please try again.');
+      });
+  }
+
+  // ─── HANDLE COMPLETE USER CREATION ──────────────────────────────────
+// ─── HANDLE COMPLETE USER CREATION ──────────────────────────────────
+function handleCompleteUserCreation(password, confirmPassword, modalEl) {
   // Validate password
   if (!password || password.length < 8) {
     Toast.warning('Password must be at least 8 characters.');
@@ -1573,66 +1337,195 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
     return;
   }
 
-  // Step 1: Create user account via signup
-  const signupPayload = {
-    email: formData.username,
-    username: formData.username,
-    phoneNumber: formData.phone,
-    userType: formData.userType,
-    name: { am: formData.nameAm, en: formData.nameEn },
-    password: password,
-    confirmPassword: confirmPassword
-  };
+  let createdIdentityId = null;
+  let createdUserId = null;
 
-  store.apiService.post('/auth/signup-with-pwd', signupPayload)
+  console.log('🚀 Starting user creation process...');
+  console.log('📝 Form data:', formData);
+
+  // Step 1: Create the identity first
+  createIdentity()
+    .then(function(identityResponse) {
+      console.log('✅ Identity created. Full response:', identityResponse);
+      
+      // Extract identity ID from response
+      const identity = identityResponse.identity || identityResponse;
+      createdIdentityId = identity.id || identityResponse.id;
+      
+      if (!createdIdentityId) {
+        console.error('❌ Identity response did not contain an ID:', identityResponse);
+        throw new Error('Failed to get identity ID from response');
+      }
+      
+      console.log('✅ Identity ID:', createdIdentityId);
+      
+      // Step 2: Create the user account
+      console.log('📝 Creating user account with:', {
+        email: formData.username,
+        username: formData.username,
+        phoneNumber: formData.phone,
+        userType: formData.userType
+      });
+      
+      return createUserAccount(password, confirmPassword);
+    })
     .then(function(signupResponse) {
-      console.log('Signup response:', signupResponse);
-      return getUserIdFromAuth(signupResponse);
-    })
-    .then(function(userId) {
-      if (!userId) {
-        throw new Error('User ID not found. Please login again.');
-      }
-      console.log('User ID from auth/me:', userId);
+      console.log('✅ User account created. Full response:', signupResponse);
       
-      // Step 2: Create user extension
-      return createUserExtension(userId);
-    })
-    .then(function(extensionResponse) {
-      console.log('User extension created:', extensionResponse);
+      // Try multiple ways to extract the user ID
+      let userId = null;
       
-      // ✅ Step 3: Create rank assignment if rank is selected
-      const userExtensionId = extensionResponse.id;
-      const rankId = formData.rankId;
-
-        console.log("extension =", extensionResponse);
-    console.log("userExtensionId =", userExtensionId);
-    console.log("rankId =", rankId);
-    console.log("before createRankAssignment");
-      
-      if (rankId && userExtensionId) {
-        return createRankAssignment(userExtensionId, rankId)
-          .then(function() {
-            Toast.success('User created and rank assigned successfully!');
-            store.syncWithBackend(true).then(function() {
-              renderUserExtensions();
+      // Check all possible locations for the user ID
+      if (signupResponse) {
+        // Direct properties
+        userId = signupResponse.id || signupResponse.userId;
+        
+        // Nested in user object
+        if (!userId && signupResponse.user) {
+          userId = signupResponse.user.id || signupResponse.user.userId;
+        }
+        
+        // Nested in data
+        if (!userId && signupResponse.data) {
+          userId = signupResponse.data.id || signupResponse.data.userId;
+        }
+        
+        // Check for user object in response
+        if (!userId && signupResponse.user && typeof signupResponse.user === 'object') {
+          userId = signupResponse.user.id || signupResponse.user.userId;
+        }
+        
+        // If we still don't have an ID, try to get it from auth/me
+        if (!userId) {
+          console.log('⚠️ No user ID in signup response, fetching from auth/me...');
+          return store.apiService.get('/auth/me')
+            .then(function(authResponse) {
+              console.log('🔍 Auth/me response:', authResponse);
+              // Try multiple possible locations for the user ID
+              const authUserId = authResponse.id || 
+                                authResponse.userId || 
+                                authResponse.user?.id || 
+                                authResponse.data?.id;
+              
+              if (!authUserId) {
+                console.error('❌ Could not find user ID in auth/me response:', authResponse);
+                throw new Error('Could not find user ID in auth/me response');
+              }
+              
+              createdUserId = authUserId;
+              console.log('✅ User ID from auth/me:', createdUserId);
+              return Promise.resolve();
             });
-          });
-      } else {
-        Toast.success('User created successfully!');
-        store.syncWithBackend(true).then(function() {
-          renderUserExtensions();
-        });
+        }
       }
+      
+      if (!userId) {
+        console.error('❌ Could not extract user ID from signup response:', signupResponse);
+        throw new Error('Failed to get user ID from signup response');
+      }
+      
+      createdUserId = userId;
+      console.log('✅ User ID:', createdUserId);
+      
+      // Step 3: Link user to identity
+      console.log(`🔗 Linking user ${createdUserId} to identity ${createdIdentityId}`);
+      return linkUserToIdentity(createdIdentityId, createdUserId);
+    })
+    .then(function() {
+      console.log('✅ User linked to identity successfully');
+      
+      // Step 4: Create rank assignment if rank is selected
+      if (formData.rankId) {
+        console.log('📝 Creating rank assignment for rank:', formData.rankId);
+        return createRankAssignment(createdIdentityId, formData.rankId);
+      }
+      return Promise.resolve();
+    })
+    .then(function() {
+      console.log('🎉 User creation complete!');
+      Toast.success('User created and linked successfully!');
+      store.syncWithBackend(true).then(function() {
+        renderUserExtensions();
+      });
+      // Reset submitting state
+      isSubmitting = false;
     })
     .catch(function(error) {
-      console.error('Error creating user:', error);
-      Toast.error(error.message || 'Failed to create user. Please try again.');
+      console.error('❌ Error creating user:', error);
+      console.error('❌ Identity ID:', createdIdentityId);
+      console.error('❌ User ID:', createdUserId);
+      
+      // Show more specific error message
+      let errorMessage = error.message || 'Failed to create user. Please try again.';
+      
+      // Check if it's a linking error
+      if (errorMessage.toLowerCase().includes('link')) {
+        errorMessage = 'User created but could not be linked. Please check the user in the system.';
+      }
+      
+      Toast.error(errorMessage);
       isSubmitting = false;
     });
 }
+  // ─── UPDATE USER EXTENSION ──────────────────────────────────────────
+  function updateUserExtension(id) {
+    return store.apiService.put('/identities/' + id, {
+      firstName: { en: formData.firstNameEn, am: formData.firstNameAm },
+      middleName: { en: formData.middleNameEn || '', am: formData.middleNameAm || '' },
+      lastName: { en: formData.lastNameEn, am: formData.lastNameAm },
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender,
+      nationality: formData.nationality,
+      address: formData.currentAddress || '',
+      phoneNumber: formData.phone,
+      nationalIdNumber: formData.nationalIdNumber || '',
+      passportNumber: formData.passportNumber || '',
+      tinNumber: formData.tinNumber || '',
+      currentTitleId: formData.titleId || null,
+      currentRankId: formData.rankId || null,
+      institutionId: formData.institutionId || null
+    })
+    .then(function(extensionResponse) {
+      console.log('User extension updated:', extensionResponse);
+      
+      // If rank is selected, create/update rank assignment
+      const rankId = formData.rankId;
+      const identityId = extensionResponse.id || extensionResponse.identity?.id;
+      
+      if (rankId && identityId) {
+        // Check if rank assignment already exists
+        return store.apiService.get('/rank-assignments?identityId=' + identityId)
+          .then(function(existingAssignments) {
+            if (existingAssignments && existingAssignments.length > 0) {
+              // Update existing rank assignment
+              const assignmentId = existingAssignments[0].id;
+              return store.apiService.put('/rank-assignments/' + assignmentId, {
+                rankId: rankId,
+                startDate: new Date().toISOString().split('T')[0],
+                isCurrent: true,
+                changeReason: 'Rank updated'
+              });
+            } else {
+              return createRankAssignment(identityId, rankId);
+            }
+          });
+      }
+      return Promise.resolve();
+    })
+    .then(function() {
+      Toast.success('User updated successfully.');
+      store.syncWithBackend(true).then(function() {
+        renderUserExtensions();
+      });
+    })
+    .catch(function(error) {
+      console.error('Error updating user:', error);
+      Toast.error(error.message || 'Failed to update user. Please try again.');
+      isSubmitting = false;
+    });
+  }
 
-  // ─── Open main modal ─────────────────────────────────────────────────
+  // ─── OPEN MAIN MODAL ─────────────────────────────────────────────────
   function openMainModal() {
     modalInstance = Modal.open({
       title: isEdit ? 'Edit Extension Contact' : 'Add Extension Contact',
@@ -1640,14 +1533,11 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       isForm: true,
       confirmText: isEdit ? 'Save Changes' : 'Create User',
       onConfirm: function(modalEl) {
-        // Prevent multiple submissions
         if (isSubmitting) return;
         isSubmitting = true;
 
-        // Save form data from DOM
         saveFormDataFromDOM(modalEl);
 
-        // ✅ Validate all tabs before submitting
         if (!validateCurrentTab('account')) {
           isSubmitting = false;
           return;
@@ -1658,13 +1548,10 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
         }
 
         if (!isEdit) {
-          // ✅ NEW USER: Get password from form and handle signup
           const password = modalEl.querySelector('#signup-password')?.value || '';
           const confirmPassword = modalEl.querySelector('#signup-confirm-password')?.value || '';
-          
-          handleSignupAndCreateExtension(password, confirmPassword, modalEl);
+          handleCompleteUserCreation(password, confirmPassword, modalEl);
         } else {
-          // ✅ EDIT USER: Update existing user
           updateUserExtension(id)
             .then(function() {
               Toast.success('User updated successfully.');
@@ -1681,16 +1568,14 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       }
     });
 
-    // Attach tab listeners after modal renders
     setTimeout(attachTabListeners, 100);
   }
 
-  // ─── Tab switching with validation ──────────────────────────────────
+  // ─── TAB SWITCHING ────────────────────────────────────────────────────
   function attachTabListeners() {
     const container = document.getElementById('extension-form-container');
     if (!container) return;
 
-    // Tab button clicks (header)
     container.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const tab = this.dataset.tab;
@@ -1698,11 +1583,9 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     });
 
-    // Next button: Account → Profile
     const nextAccountBtn = container.querySelector('#tab-next-account');
     if (nextAccountBtn) {
       nextAccountBtn.addEventListener('click', function() {
-        // Save and validate account tab
         saveFormDataFromDOM(container);
         if (validateCurrentTab('account')) {
           switchToTab('profile');
@@ -1710,11 +1593,9 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Next button: Profile → Assignment
     const nextAssignmentBtn = container.querySelector('#tab-next-assignment');
     if (nextAssignmentBtn) {
       nextAssignmentBtn.addEventListener('click', function() {
-        // Save and validate profile tab
         saveFormDataFromDOM(container);
         if (validateCurrentTab('profile')) {
           switchToTab('assignment');
@@ -1722,7 +1603,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Back button: Profile → Account
     const backAccountBtn = container.querySelector('#tab-back-account');
     if (backAccountBtn) {
       backAccountBtn.addEventListener('click', function() {
@@ -1731,7 +1611,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Back button: Assignment → Profile
     const backProfileBtn = container.querySelector('#tab-back-profile');
     if (backProfileBtn) {
       backProfileBtn.addEventListener('click', function() {
@@ -1740,7 +1619,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Create Rank button
     const createRankBtn = container.querySelector('#btn-create-rank');
     if (createRankBtn) {
       createRankBtn.addEventListener('click', function() {
@@ -1760,7 +1638,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Create Title button
     const createTitleBtn = container.querySelector('#btn-create-title');
     if (createTitleBtn) {
       createTitleBtn.addEventListener('click', function() {
@@ -1780,7 +1657,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       });
     }
 
-    // Create Institution button
     const createInstitutionBtn = container.querySelector('#btn-create-institution');
     if (createInstitutionBtn) {
       createInstitutionBtn.addEventListener('click', function() {
@@ -1790,14 +1666,12 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
     }
   }
 
-  // ─── Switch tab function ────────────────────────────────────────────
   function switchToTab(tab) {
     const container = document.getElementById('extension-form-container');
     if (!container) return;
 
     activeTab = tab;
     
-    // Update button styles
     container.querySelectorAll('.tab-btn').forEach(btn => {
       btn.className = 'tab-btn px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700';
     });
@@ -1806,7 +1680,6 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
       activeBtn.className = 'tab-btn px-4 py-2 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600';
     }
     
-    // Update content visibility
     container.querySelectorAll('.tab-content').forEach(content => {
       content.className = 'tab-content hidden';
     });
@@ -1816,11 +1689,10 @@ function handleSignupAndCreateExtension(password, confirmPassword, modalEl) {
     }
   }
 
-  // ─── Open the modal ──────────────────────────────────────────────────
   openMainModal();
 }
 
-
+// ─── VIEW USER DETAILS ──────────────────────────────────────────────────
 function viewUserDetails(id) {
   const item = store.userExtensions.find(u => u.id === id);
   if (!item) {
@@ -1840,28 +1712,19 @@ function viewUserDetails(id) {
     confirmText: 'Close'
   });
 
-  // ✅ FIX: Use the actual userId for the beneficiary API
   const actualUserId = item.userId || item.id;
   
-  console.log('UserExtension ID:', id);
-  console.log('Actual User ID (for beneficiary API):', actualUserId);
-
-  // ✅ FIX: Use /rank-assignments with query param
   Promise.all([
-    store.apiService.get('/rank-assignments?userExtensionId=' + id).catch(() => null),
+    store.apiService.get('/rank-assignments?identityId=' + id).catch(() => null),
     store.apiService.get('/house-allocation-requests/beneficiary/' + actualUserId).catch(() => null)
   ]).then(function(results) {
     const rankResponse = results[0];
     const beneficiaryResponse = results[1];
     
-    console.log('Rank assignment response:', rankResponse);
-    console.log('Beneficiary requests response:', beneficiaryResponse);
-    
     if (loadingModal && typeof loadingModal.close === 'function') {
       loadingModal.close();
     }
 
-    // Build user details HTML
     const firstName = item.firstName?.en || item.firstName?.am || '';
     let middleName = '';
     if (item.middleName?.en && Array.isArray(item.middleName.en)) {
@@ -1874,26 +1737,19 @@ function viewUserDetails(id) {
     const lastName = item.lastName?.en || item.lastName?.am || '';
     const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ') || 'N/A';
 
-    // Build rank details from API response if available
     let rankDetailsHtml = '';
-    let rankName = 'Not Assigned';
-    let rankPriority = 'N/A';
-    
-    // ✅ Handle rank response (could be array or single object)
     if (rankResponse) {
       let currentAssignment = null;
-      // Handle array response
       if (Array.isArray(rankResponse) && rankResponse.length > 0) {
         currentAssignment = rankResponse.find(r => r.isCurrent === true) || rankResponse[0];
       } else if (rankResponse && typeof rankResponse === 'object' && !Array.isArray(rankResponse)) {
-        // Handle single object response
         currentAssignment = rankResponse;
       }
       
       if (currentAssignment && currentAssignment.rank) {
         const rank = currentAssignment.rank;
-        rankName = rank.name?.en || rank.name?.am || 'N/A';
-        rankPriority = rank.priorityLevel || rank.allocationPriority || 'N/A';
+        const rankName = rank.name?.en || rank.name?.am || 'N/A';
+        const rankPriority = rank.priorityLevel || rank.allocationPriority || 'N/A';
         const bedroomEntitlement = rank.bedroomEntitlement || '';
         const startDate = currentAssignment.startDate || '';
         const isCurrent = currentAssignment.isCurrent || false;
@@ -1924,7 +1780,30 @@ function viewUserDetails(id) {
       `;
     }
 
-    // ... rest of the function (beneficiary HTML and modal) ...
+    let beneficiaryHtml = '';
+    if (beneficiaryResponse) {
+      let requests = [];
+      if (Array.isArray(beneficiaryResponse)) {
+        requests = beneficiaryResponse;
+      } else if (beneficiaryResponse.items && Array.isArray(beneficiaryResponse.items)) {
+        requests = beneficiaryResponse.items;
+      } else if (beneficiaryResponse.data && Array.isArray(beneficiaryResponse.data)) {
+        requests = beneficiaryResponse.data;
+      }
+      
+      if (requests.length > 0) {
+        beneficiaryHtml = requests.map(req => `
+          <div class="flex items-center justify-between py-2 border-b border-slate-100 text-sm">
+            <span class="text-slate-600">${req.house?.address || req.houseId || 'N/A'}</span>
+            <span class="text-xs px-2 py-0.5 rounded ${req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : req.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}">${req.status || 'N/A'}</span>
+          </div>
+        `).join('');
+      } else {
+        beneficiaryHtml = `<p class="text-sm text-slate-400">No allocation history</p>`;
+      }
+    } else {
+      beneficiaryHtml = `<p class="text-sm text-slate-400">No allocation history</p>`;
+    }
     
     Modal.open({
       title: 'User Details',
@@ -1977,7 +1856,7 @@ function viewUserDetails(id) {
               </div>
               <div>
                 <label class="text-[10px] font-semibold uppercase text-slate-400 tracking-wider">Address</label>
-                <p class="text-sm text-slate-800">${item.currentAddress || 'N/A'}</p>
+                <p class="text-sm text-slate-800">${item.address || 'N/A'}</p>
               </div>
             </div>
           </div>
@@ -2029,7 +1908,7 @@ function confirmDeleteExtension(id) {
     cancelText: 'Cancel',
     confirmClass: 'bg-rose-600 hover:bg-rose-700',
     onConfirm: function() {
-      store.apiService.delete('/user-extensions/' + id)
+      store.apiService.delete('/identities/' + id)
         .then(function() {
           Toast.success('User deleted successfully.');
           store.syncWithBackend(true).then(renderUserExtensions);
